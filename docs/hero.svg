@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#34d399"/>
+    </marker>
+    <style>
+      text { font-family: "DejaVu Sans", "Helvetica Neue", Arial, sans-serif; }
+      .t { fill: #e2e8f0; font-size: 21px; }
+      .s { fill: #94a3b8; font-size: 15px; }
+      .h { fill: #34d399; font-size: 15px; font-weight: 700; letter-spacing: 2px; }
+      .m { fill: #34d399; font-size: 14px; font-family: "DejaVu Sans Mono", monospace; }
+      .row { fill: #cbd5e1; font-size: 14px; font-family: "DejaVu Sans Mono", monospace; }
+      .dim { fill: #64748b; font-size: 14px; font-family: "DejaVu Sans Mono", monospace; }
+      .box { fill: #111a33; stroke: #34d399; stroke-width: 2; }
+      .card { fill: #0f172a; stroke: #334155; stroke-width: 2; }
+      .e { stroke: #34d399; stroke-width: 2.5; fill: none; marker-end: url(#a); }
+      .ed { stroke: #34d399; stroke-width: 2.5; fill: none; stroke-dasharray: 7 6; marker-end: url(#a); }
+    </style>
+  </defs>
+  <rect width="1280" height="640" fill="#0b1020"/>
+
+  <text x="80" y="104" fill="#f8fafc" font-size="52" font-weight="700">langgraph-short-long-term-memory</text>
+  <text x="80" y="150" fill="#94a3b8" font-size="24">Threads forget each other. Users don't get forgotten. Agent memory in LangGraph, all local.</text>
+
+  <!-- short-term column -->
+  <text class="h" x="80" y="214">SHORT-TERM · CHECKPOINTER</text>
+  <rect class="card" x="80" y="232" width="430" height="150" rx="14"/>
+  <text class="t" x="104" y="268">thread alice/a</text>
+  <text class="row" x="104" y="298">user: my name is Ada, I live in Lisbon</text>
+  <text class="row" x="104" y="322">ai:   noted (remember x2)</text>
+  <text class="dim" x="104" y="346">summary · trimmed to 3000 tokens</text>
+  <text class="dim" x="104" y="368">checkpoints: 0 1 2 3 4 ← time travel</text>
+
+  <rect class="card" x="80" y="404" width="430" height="134" rx="14"/>
+  <text class="t" x="104" y="440">thread alice/b</text>
+  <text class="row" x="104" y="470">user: where do I live?</text>
+  <text class="row" x="104" y="494">ai:   Lives in Lisbon.</text>
+  <text class="dim" x="104" y="520">never sees thread a's messages</text>
+
+  <!-- long-term column -->
+  <text class="h" x="790" y="214">LONG-TERM · STORE</text>
+  <rect class="box" x="790" y="232" width="410" height="306" rx="14"/>
+  <text class="m" x="814" y="266">("memories", "alice", …)</text>
+  <text class="t" x="814" y="306">facts</text>
+  <text class="s" x="900" y="306">name · home_city · diet (v2)</text>
+  <text class="t" x="814" y="350">episodes</text>
+  <text class="s" x="930" y="350">one per thread, few-shot</text>
+  <text class="t" x="814" y="394">instructions</text>
+  <text class="s" x="960" y="394">"Keep answers short."</text>
+  <text class="dim" x="814" y="438">semantic search · local embeddings</text>
+  <text class="dim" x="814" y="462">("memories", "bob", …) is another world</text>
+  <text class="dim" x="814" y="486">forget me = delete namespace + threads</text>
+
+  <!-- arrows -->
+  <path class="e" d="M512 290 C 620 290, 680 300, 786 300"/>
+  <text class="m" x="560" y="270">remember (hot path)</text>
+  <path class="ed" d="M512 350 C 620 360, 690 380, 786 390"/>
+  <text class="m" x="545" y="402">consolidate (background)</text>
+  <path class="e" d="M786 470 C 690 470, 620 470, 514 470"/>
+  <text class="m" x="600" y="455">recall</text>
+
+  <!-- footer -->
+  <text class="s" x="80" y="584">SqliteSaver · trim_messages · running summary · get_state_history · SqliteStore + sqlite-vec · fact upserts · prompt optimization</text>
+  <text class="s" x="80" y="612">per-user namespaces from the run context, never from the model  ·  runs 100% locally on ollama</text>
+</svg>

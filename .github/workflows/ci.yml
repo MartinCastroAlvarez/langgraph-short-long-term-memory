@@ -1,0 +1,113 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint (ruff + mypy + bandit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install Poetry
+        run: pipx install poetry
+      - name: Install dependencies
+        run: poetry install --no-interaction --all-extras
+      - name: ruff check
+        run: poetry run ruff check memory_agent tests examples
+      - name: ruff format --check
+        run: poetry run ruff format --check memory_agent tests examples
+      - name: mypy
+        run: poetry run mypy memory_agent
+      - name: bandit
+        run: poetry run bandit -c pyproject.toml -q -r memory_agent
+
+  audit:
+    name: pip-audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install Poetry
+        run: pipx install poetry
+      - name: Install dependencies
+        run: poetry install --no-interaction --no-root --all-extras
+      - name: pip-audit
+        run: |
+          # pip is tooling, not a shipped dependency: upgrade it so its own advisories don't fail the audit.
+          poetry run python -m pip install --upgrade -q pip
+          poetry run pip-audit
+
+  test:
+    name: Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install Poetry
+        run: pipx install poetry
+      - name: Install dependencies
+        run: poetry install --no-interaction
+      - name: Run pytest (fake model, hashing embedder, no network)
+        run: poetry run pytest -q
+      - name: Two-thread demo (SQLite checkpointer + SQLite store, offline)
+        run: poetry run python -m examples.quickstart
+      - name: Memory survives the process (one turn per CLI call)
+        run: |
+          d="--provider fake --data-dir ci-memory --user alice"
+          poetry run python -m memory_agent $d --thread a "Hi, my name is Ada and I live in Lisbon."
+          poetry run python -m memory_agent $d --thread b --json "Where do I live?" > out.json
+          python -c "import json; r = json.load(open('out.json')); assert 'Lisbon' in r['text'], r"
+          poetry run python -m memory_agent $d --forget-me
+          poetry run python -m memory_agent $d --memories --json > mem.json
+          python -c "import json; m = json.load(open('mem.json')); assert not any(m.values()), m"
+      - name: Build the wheel and check py.typed is inside
+        run: |
+          poetry build -q
+          python - <<'PY'
+          import glob, zipfile
+          names = zipfile.ZipFile(glob.glob("dist/*.whl")[0]).namelist()
+          assert any(n.endswith("memory_agent/py.typed") for n in names), names
+          print("wheel ok:", len(names), "files")
+          PY
+
+  s3-adapter:
+    name: Optional adapter (s3-agent-memory store)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install Poetry
+        run: pipx install poetry
+      - name: Install dependencies + the sibling store
+        run: |
+          poetry install --no-interaction
+          poetry run pip install -q "s3-agent-memory[langgraph] @ git+https://github.com/MartinCastroAlvarez/s3-agent-memory"
+      - name: Two-thread demo on S3Store (objects in a folder, then in memory)
+        run: |
+          MEMORY_STORE="s3+file://$RUNNER_TEMP/memories" poetry run python -m examples.quickstart
+          test -n "$(find "$RUNNER_TEMP/memories" -name '*.json' | head -1)"
+          MEMORY_STORE="s3+memory://" poetry run python -m examples.quickstart
